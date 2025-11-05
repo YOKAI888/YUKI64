@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>たんぽぽと雪虫</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: linear-gradient(to top, #6b7b8c, #b9d3f0);
+  }
+  canvas {
+    display: block;
+  }
+  .face {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 80px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="face" id="face1">（^ ω^）</div>
+<div class="face" id="face2">(　ﾟ　Д　ﾟ 　)</div>
+
+<script>
+const canvas = document.getElementById("sky");
+const ctx = canvas.getContext("2d");
+let w, h;
+
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// 雪虫（1000匹）
+const snowflies = Array.from({ length: 1000 }, () => ({
+  x: Math.random() * w,
+  y: Math.random() * h,
+  r: Math.random() * 2 + 1,
+  speed: Math.random() * 0.5 + 0.2,
+  glow: Math.random() < 0.3
+}));
+
+// たんぽぽ
+function drawDandelion() {
+  const cx = w / 2, cy = h - 80;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = "#2e8b57";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -120);
+  ctx.stroke();
+  for (let i = 0; i < 40; i++) {
+    const angle = (i / 40) * Math.PI * 2;
+    const x = Math.cos(angle) * 40;
+    const y = -120 + Math.sin(angle) * 40;
+    ctx.beginPath();
+    ctx.moveTo(0, -120);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "rgba(255,255,0,0.8)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// 顔文字の出現
+function showFace(faceId) {
+  const el = document.getElementById(faceId);
+  el.style.opacity = 1;
+  setTimeout(() => (el.style.opacity = 0), 800);
+}
+
+// クリック判定
+canvas.addEventListener("click", e => {
+  const mx = e.clientX, my = e.clientY;
+  snowflies.forEach((s, i) => {
+    const dx = s.x - mx, dy = s.y - my;
+    if (dx * dx + dy * dy < 50 && i % 100 === 0) {
+      showFace(Math.random() < 0.5 ? "face1" : "face2");
+    }
+  });
+});
+
+function animate() {
+  ctx.clearRect(0, 0, w, h);
+  drawDandelion();
+  snowflies.forEach(s => {
+    s.y += s.speed;
+    s.x += Math.sin(s.y / 20) * 0.3;
+    if (s.y > h) s.y = -10;
+    if (s.glow) {
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = "white";
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.shadowBlur = 0;
+    }
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.shadowBlur = 0;
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
