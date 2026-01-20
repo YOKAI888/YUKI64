@@ -68,6 +68,7 @@ const bugs = Array.from({ length: bugCount }, () => ({
 
 // 彼岸花のクリックカウントと色設定
 let lilyClickCount = 0;
+let rainbowOffset = 0; // 虹色回転用
 const lilyColors = [
   { color: "rgba(255,0,0,0.75)", shadow: "rgba(255,60,60,0.9)" },      // 赤（初期）
   { color: "rgba(100,200,255,0.75)", shadow: "rgba(100,200,255,0.9)" }, // 水色
@@ -79,12 +80,12 @@ const lilyColors = [
 
 function getCurrentLilyColor(petalIndex) {
   if (lilyClickCount > 100) {
-    // 虹色モード
+    // 虹色モード（回転）
     const rainbowPalette = [
       "rgba(255,0,0,0.75)", "rgba(255,127,0,0.75)", "rgba(255,255,0,0.75)",
       "rgba(0,255,0,0.75)", "rgba(0,127,255,0.75)", "rgba(0,0,255,0.75)", "rgba(139,0,255,0.75)"
     ];
-    return rainbowPalette[petalIndex % rainbowPalette.length];
+    return rainbowPalette[(petalIndex + rainbowOffset) % rainbowPalette.length];
   } else {
     const colorIndex = Math.floor(lilyClickCount / 15) % lilyColors.length;
     return lilyColors[colorIndex].color;
@@ -206,6 +207,12 @@ function animate() {
     ctx.fill();
   });
   ctx.shadowBlur = 0;
+  
+  // 虹色モードの回転
+  if (lilyClickCount > 100) {
+    rainbowOffset = (rainbowOffset + 1) % 7;
+  }
+  
   requestAnimationFrame(animate);
 }
 
