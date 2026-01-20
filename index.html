@@ -51,11 +51,13 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// ゴミ虫（虹色トーン）
+// ゴミ虫（スマホ対応で数を調整）
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const bugCount = isMobile ? 500 : 1000;
 const rainbowColors = [
   "#c7d0ff", "#f7c7ff", "#ffd6e0", "#fff0d6", "#e0ffe8", "#d6f0ff"
 ];
-const bugs = Array.from({ length: 1000 }, () => ({
+const bugs = Array.from({ length: bugCount }, () => ({
   x: Math.random() * w,
   y: Math.random() * h,
   r: Math.random() * 2 + 1.5,
@@ -63,6 +65,40 @@ const bugs = Array.from({ length: 1000 }, () => ({
   color: rainbowColors[Math.floor(Math.random() * rainbowColors.length)],
   phase: Math.random() * Math.PI * 2
 }));
+
+// 彼岸花のクリックカウントと色設定
+let lilyClickCount = 0;
+const lilyColors = [
+  { color: "rgba(255,0,0,0.75)", shadow: "rgba(255,60,60,0.9)" },      // 赤（初期）
+  { color: "rgba(100,200,255,0.75)", shadow: "rgba(100,200,255,0.9)" }, // 水色
+  { color: "rgba(255,220,100,0.75)", shadow: "rgba(255,220,100,0.9)" }, // 黄色
+  { color: "rgba(200,150,255,0.75)", shadow: "rgba(200,150,255,0.9)" }, // 薄紫
+  { color: "rgba(255,150,80,0.75)", shadow: "rgba(255,150,80,0.9)" },   // オレンジ
+  { color: "rgba(100,255,150,0.75)", shadow: "rgba(100,255,150,0.9)" }  // 緑
+];
+
+function getCurrentLilyColor(petalIndex) {
+  if (lilyClickCount > 100) {
+    // 虹色モード
+    const rainbowPalette = [
+      "rgba(255,0,0,0.75)", "rgba(255,127,0,0.75)", "rgba(255,255,0,0.75)",
+      "rgba(0,255,0,0.75)", "rgba(0,127,255,0.75)", "rgba(0,0,255,0.75)", "rgba(139,0,255,0.75)"
+    ];
+    return rainbowPalette[petalIndex % rainbowPalette.length];
+  } else {
+    const colorIndex = Math.floor(lilyClickCount / 15) % lilyColors.length;
+    return lilyColors[colorIndex].color;
+  }
+}
+
+function getCurrentLilyShadow() {
+  if (lilyClickCount > 100) {
+    return "rgba(255,255,255,0.9)";
+  } else {
+    const colorIndex = Math.floor(lilyClickCount / 15) % lilyColors.length;
+    return lilyColors[colorIndex].shadow;
+  }
+}
 
 // 彼岸花
 function drawSpiderLily() {
@@ -83,10 +119,10 @@ function drawSpiderLily() {
     ctx.beginPath();
     ctx.moveTo(0, -120);
     ctx.lineTo(x, y);
-    ctx.strokeStyle = "rgba(255,0,0,0.75)";
+    ctx.strokeStyle = getCurrentLilyColor(i);
     ctx.lineWidth = 2;
     ctx.shadowBlur = 12;
-    ctx.shadowColor = "rgba(255,60,60,0.9)";
+    ctx.shadowColor = getCurrentLilyShadow();
     ctx.stroke();
   }
   ctx.restore();
@@ -100,16 +136,60 @@ function showFace(faceId) {
   setTimeout(() => (el.style.opacity = 0), 800);
 }
 
-// クリック判定
-canvas.addEventListener("click", e => {
-  const mx = e.clientX, my = e.clientY;
-  bugs.forEach((s, i) => {
+// 音追加部分
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playBeep(frequency = 800, duration = 0.1) {
+  initAudio();
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  oscillator.frequency.value = frequency;
+  oscillator.type = 'sine';
+  gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  oscillator.start(audioCtx.currentTime);
+  oscillator.stop(audioCtx.currentTime + duration);
+}
+
+// クリック・タッチ判定（当たり判定拡大 + 彼岸花クリック判定）
+function handleInteraction(e) {
+  e.preventDefault();
+  const mx = (e.touches ? e.touches[0].clientX : e.clientX);
+  const my = (e.touches ? e.touches[0].clientY : e.clientY);
+  
+  // 彼岸花のクリック判定
+  const lilyCx = w / 2;
+  const lilyCy = h - 80;
+  const lilyDx = mx - lilyCx;
+  const lilyDy = my - (lilyCy - 60); // 花の中心あたり
+  if (lilyDx * lilyDx + lilyDy * lilyDy < 3600) { // 60px範囲
+    lilyClickCount++;
+    playBeep(1000, 0.15);
+    return;
+  }
+  
+  // ゴミ虫のクリック判定
+  let hit = false;
+  bugs.forEach(s => {
     const dx = s.x - mx, dy = s.y - my;
-    if (dx * dx + dy * dy < 50 && i % 100 === 0) {
-      showFace(Math.random() < 0.5 ? "face1" : "face2");
+    if (dx * dx + dy * dy < 22500) { // 150pxに拡大
+      if (!hit) {
+        playBeep();
+        showFace(Math.random() < 0.5 ? "face1" : "face2");
+        hit = true;
+      }
     }
   });
-});
+}
+canvas.addEventListener("click", handleInteraction);
+canvas.addEventListener("touchstart", handleInteraction);
 
 function animate() {
   ctx.clearRect(0, 0, w, h);
@@ -128,6 +208,9 @@ function animate() {
   ctx.shadowBlur = 0;
   requestAnimationFrame(animate);
 }
+
+// ページロード時にAudioContext準備
+window.addEventListener('load', initAudio);
 
 animate();
 </script>
